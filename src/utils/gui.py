@@ -1,4 +1,5 @@
 import sys
+import PyQt5
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QLabel, QTextEdit, QSpinBox, QPushButton,
     QVBoxLayout, QHBoxLayout, QFileDialog, QMessageBox, QGraphicsView, QGraphicsScene
@@ -6,6 +7,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtSvg import QGraphicsSvgItem
 from PyQt5.QtCore import Qt
 from utils.picker import HandwritingPicker  # Assuming picker.py is in the same directory
+from PyQt5 import QtGui
 
 class HandwritingGUI(QWidget):
     MAIN_LAYOUT_RATIO = (1, 2)  # (settings_layout, svg_view)
@@ -49,6 +51,11 @@ class HandwritingGUI(QWidget):
         self.preview_btn = QPushButton("預覽")
         self.preview_btn.clicked.connect(self.preview)
         settings_layout.addWidget(self.preview_btn)
+
+        # Export to PDF button
+        self.export_pdf_btn = QPushButton("匯出為 PDF")
+        self.export_pdf_btn.clicked.connect(self.export_to_pdf)
+        settings_layout.addWidget(self.export_pdf_btn)
         settings_layout.addStretch(1)
 
         # Right: SVG display
@@ -100,6 +107,22 @@ class HandwritingGUI(QWidget):
                 text_item.setPos(x + cell_size // 4, y + cell_size // 4)
         # 設定 sceneRect 讓內容靠左上
         self.svg_scene.setSceneRect(0, 0, margin * 2 + columns * cell_size, margin * 2 + rows * cell_size)
+    def export_to_pdf(self):
+        """將 SVG scene 匯出成 PDF 檔案"""
+        file_path, _ = QFileDialog.getSaveFileName(self, "儲存 PDF", "", "PDF Files (*.pdf)")
+        if not file_path:
+            return
+        from PyQt5.QtPrintSupport import QPrinter
+        printer = QPrinter(QPrinter.HighResolution)
+        printer.setOutputFormat(QPrinter.PdfFormat)
+        printer.setOutputFileName(file_path)
+        painter = None
+        try:
+            painter = QtGui.QPainter(printer)
+            self.svg_scene.render(painter)
+        finally:
+            if painter:
+                painter.end()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
