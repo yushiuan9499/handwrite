@@ -3,7 +3,7 @@ import random
 import xml.etree.ElementTree as ET
 
 class HandwritingPicker:
-    def __init__(self, asset_dir="asset"):
+    def __init__(self, asset_dir="data/font"):
         self.asset_dir = asset_dir
 
     def pick_svg_for_char(self, char):

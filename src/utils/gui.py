@@ -11,7 +11,7 @@ class HandwritingGUI(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Handwriting Simulator (PyQt)")
-        self.picker = HandwritingPicker(asset_dir="asset")
+        self.picker = HandwritingPicker()
         self.init_ui()
 
     def init_ui(self):
