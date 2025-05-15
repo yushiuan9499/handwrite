@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtSvg import QGraphicsSvgItem
 from PyQt5.QtCore import Qt
-from picker import HandwritingPicker  # Assuming picker.py is in the same directory
+from utils.picker import HandwritingPicker  # Assuming picker.py is in the same directory
 
 class HandwritingGUI(QWidget):
     MAIN_LAYOUT_RATIO = (1, 2)  # (settings_layout, svg_view)
@@ -16,7 +16,8 @@ class HandwritingGUI(QWidget):
         self.picker = HandwritingPicker()
         self.init_ui()
 
-    def init_ui(self):
+    def init_ui(self) -> None:
+        """初始化 UI"""
         main_layout = QHBoxLayout()
 
         # Left: Settings
@@ -62,7 +63,8 @@ class HandwritingGUI(QWidget):
         main_layout.addWidget(self.svg_view, self.MAIN_LAYOUT_RATIO[1])
         self.setLayout(main_layout)
 
-    def preview(self):
+    def preview(self) -> None:
+        """預覽按鈕的點擊事件"""
         text = self.text_input.toPlainText().strip()
         if not text:
             QMessageBox.information(self, "提示", "請先輸入文字")
@@ -83,13 +85,16 @@ class HandwritingGUI(QWidget):
             col = idx % columns
             x = margin + col * cell_size
             y = margin + row * cell_size 
+            # 嘗試從 SVG 中取得對應的字形
             svg_path = self.picker.pick_svg_for_char(char)
             if svg_path:
+                # 如果有對應的 SVG，則顯示它
                 svg_item = QGraphicsSvgItem(svg_path)
                 svg_item.setScale(cell_size / 15)
                 svg_item.setPos(x, y)
                 self.svg_scene.addItem(svg_item)
             else:
+                # 如果沒有對應的 SVG，則顯示 fallback 字形
                 fallback_char = self.picker.get_fallback_char(char)
                 text_item = self.svg_scene.addText(fallback_char)
                 text_item.setPos(x + cell_size // 4, y + cell_size // 4)
