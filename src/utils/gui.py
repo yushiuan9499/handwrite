@@ -8,6 +8,8 @@ from PyQt5.QtCore import Qt
 from picker import HandwritingPicker  # Assuming picker.py is in the same directory
 
 class HandwritingGUI(QWidget):
+    MAIN_LAYOUT_RATIO = (1, 2)  # (settings_layout, svg_view)
+    SVG_VIEW_SIZE = (800, 1600)
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Handwriting Simulator (PyQt)")
@@ -15,15 +17,18 @@ class HandwritingGUI(QWidget):
         self.init_ui()
 
     def init_ui(self):
-        layout = QVBoxLayout()
+        main_layout = QHBoxLayout()
+
+        # Left: Settings
+        settings_layout = QVBoxLayout()
 
         # Input
         input_layout = QHBoxLayout()
         input_layout.addWidget(QLabel("輸入文字："))
         self.text_input = QTextEdit()
-        self.text_input.setFixedHeight(50)
+        self.text_input.setFixedHeight(100)
         input_layout.addWidget(self.text_input)
-        layout.addLayout(input_layout)
+        settings_layout.addLayout(input_layout)
 
         # Column/Row
         col_row_layout = QHBoxLayout()
@@ -37,39 +42,59 @@ class HandwritingGUI(QWidget):
         self.row_spin.setRange(1, 100)
         self.row_spin.setValue(10)
         col_row_layout.addWidget(self.row_spin)
-        layout.addLayout(col_row_layout)
+        settings_layout.addLayout(col_row_layout)
 
         # Preview button
         self.preview_btn = QPushButton("預覽")
         self.preview_btn.clicked.connect(self.preview)
-        layout.addWidget(self.preview_btn)
+        settings_layout.addWidget(self.preview_btn)
+        settings_layout.addStretch(1)
 
-        # SVG display
+        # Right: SVG display
         self.svg_view = QGraphicsView()
         self.svg_scene = QGraphicsScene()
         self.svg_view.setScene(self.svg_scene)
-        self.svg_view.setFixedSize(220, 220)
-        layout.addWidget(self.svg_view)
+        self.svg_view.setFixedSize(*self.SVG_VIEW_SIZE)
+        self.svg_view.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
 
-        self.setLayout(layout)
+        # Combine layouts
+        main_layout.addLayout(settings_layout, self.MAIN_LAYOUT_RATIO[0])
+        main_layout.addWidget(self.svg_view, self.MAIN_LAYOUT_RATIO[1])
+        self.setLayout(main_layout)
 
     def preview(self):
-        char = self.text_input.toPlainText().strip()[:1]
-        if not char:
-            QMessageBox.information(self, "提示", "請先輸入一個字元")
+        text = self.text_input.toPlainText().strip()
+        if not text:
+            QMessageBox.information(self, "提示", "請先輸入文字")
             return
-        svg_path = self.picker.pick_svg_for_char(char)
+        columns = self.col_spin.value()
+        rows = self.row_spin.value()
         self.svg_scene.clear()
-        if svg_path:
-            svg_item = QGraphicsSvgItem(svg_path)
-            svg_item.setScale(2.0)
-            self.svg_scene.addItem(svg_item)
-            svg_item.setPos(10, 10)
-        else:
-            fallback_char = self.picker.get_fallback_char(char)
-            text_item = self.svg_scene.addText(fallback_char)
-            if text_item is not None:
-                text_item.setPos(80, 80)
+
+        # 從左上角橫式填寫
+        cell_size = 15 # 每個字的大小
+        margin = 10
+        max_chars = columns * rows 
+        text = text[:max_chars] # 限制字數
+
+        for idx, char in enumerate(text):
+            # 計算位置
+            row = idx // columns
+            col = idx % columns
+            x = margin + col * cell_size
+            y = margin + row * cell_size 
+            svg_path = self.picker.pick_svg_for_char(char)
+            if svg_path:
+                svg_item = QGraphicsSvgItem(svg_path)
+                svg_item.setScale(cell_size / 15)
+                svg_item.setPos(x, y)
+                self.svg_scene.addItem(svg_item)
+            else:
+                fallback_char = self.picker.get_fallback_char(char)
+                text_item = self.svg_scene.addText(fallback_char)
+                text_item.setPos(x + cell_size // 4, y + cell_size // 4)
+        # 設定 sceneRect 讓內容靠左上
+        self.svg_scene.setSceneRect(0, 0, margin * 2 + columns * cell_size, margin * 2 + rows * cell_size)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

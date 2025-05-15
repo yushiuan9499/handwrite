@@ -6,7 +6,7 @@ class HandwritingPicker:
     def __init__(self, asset_dir="data/font"):
         self.asset_dir = asset_dir
 
-    def pick_svg_for_char(self, char):
+    def pick_svg_for_char(self, char) -> str|None:
         folder = os.path.join(self.asset_dir, char)
         if not os.path.isdir(folder):
             return None
@@ -16,16 +16,16 @@ class HandwritingPicker:
         svg_file = random.choice(svg_files)
         return os.path.join(folder, svg_file)
 
-    def is_chinese(self, char):
+    def is_chinese(self, char) -> bool:
         return '\u4e00' <= char <= '\u9fff'
 
-    def get_fallback_char(self, char):
+    def get_fallback_char(self, char) -> str:
         if self.is_chinese(char):
             return "　"  # 全形空白
         else:
             return " "  # 半形空白
 
-    def parse_svg_path(self, svg_path):
+    def parse_svg_path(self, svg_path) -> str|None:
         # Minimal SVG path extraction (for demo)
         try:
             tree = ET.parse(svg_path)
