@@ -82,10 +82,11 @@ class HandwritingGUI(QWidget):
         if not text:
             QMessageBox.information(self, "提示", "請先輸入文字")
             return
-        # 假設字是正方形的
+
         cell_size = self.size_spin.value()
-        column = self.column_spin.value()
+        column_limit = self.column_spin.value()
         self.svg_scene.clear()
+
         # 重新加回背景（如果有）
         if self.background_path:
             self.background_item = None
@@ -95,51 +96,46 @@ class HandwritingGUI(QWidget):
         max_row = 30
         max_column = 30
 
-        # 計算位置用變數
-        now_column = 0
+        current_column = 0
         row = 0
         col = 0
         col_shift = 0
 
-
         # 從左上角橫式填寫
         for char in text:
-            # 換行
             if char == '\n':
                 row += 1
                 col = 0
                 continue
+
             col += 1
             # 計算這個column可以放多少字
-            max_word = max_column//column + (now_column < max_column%column)
+            max_word = max_column // column_limit + (current_column < max_column % column_limit)
             if col >= max_word:
-                # 換行
                 col = 0
                 row += 1
             if row >= max_row:
                 col_shift += max_word
-                now_column += 1
+                current_column += 1
                 row = 0
-            if now_column >= column:
-                # 顯示警告，詢問是否拋棄後面的內容
+            if current_column >= column_limit:
                 QMessageBox.warning(self, "警告", "字數過多，請調整字數")
                 break
-            # 計算位置
-            x = col_shift + margin + col * cell_size 
-            y = margin + row * cell_size 
-            # 嘗試從 SVG 中取得對應的字形
+
+            x = col_shift + margin + col * cell_size
+            y = margin + row * cell_size
+
             svg_path = self.picker.pick_svg_for_char(char)
             if svg_path:
-                # 如果有對應的 SVG，則顯示它
                 svg_item = QGraphicsSvgItem(svg_path)
                 svg_item.setScale(cell_size / 15)
                 svg_item.setPos(x, y)
                 self.svg_scene.addItem(svg_item)
             else:
-                # 如果沒有對應的 SVG，則顯示 fallback 字形
                 fallback_char = self.picker.get_fallback_char(char)
                 text_item = self.svg_scene.addText(fallback_char)
-                text_item.setPos(x + cell_size // 4, y + cell_size // 4)
+                if text_item is not None:
+                    text_item.setPos(x + cell_size // 4, y + cell_size // 4)
         # 設定 sceneRect 讓內容靠左上
     def export_to_pdf(self):
         """將 SVG scene 匯出成 PDF 檔案"""
