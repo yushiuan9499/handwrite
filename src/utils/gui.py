@@ -175,6 +175,10 @@ class HandwritingGUI(QWidget):
         self.background_item = bg_item
         self.background_path = svg_path
 
+        # 取得背景 SVG 的大小並調整 svg_view
+        rect = bg_item.boundingRect()
+        self.svg_scene.setSceneRect(rect)
+        self.svg_view.setFixedSize(int(rect.width()), int(rect.height()))
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     gui = HandwritingGUI()
