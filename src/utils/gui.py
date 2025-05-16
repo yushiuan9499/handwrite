@@ -1,12 +1,28 @@
 import sys
+import PyQt5
 from PyQt5.QtWidgets import (
-    QApplication, QWidget, QLabel, QTextEdit, QSpinBox, QPushButton,
-    QVBoxLayout, QHBoxLayout, QFileDialog, QMessageBox, QGraphicsView, QGraphicsScene
+    QApplication, QWidget, QLabel, QTextEdit, QSpinBox, QPushButton, QScrollArea, QSlider,
+    QVBoxLayout, QHBoxLayout, QFileDialog, QMessageBox, QGraphicsView, QGraphicsScene, QDialog,
 )
 from PyQt5.QtSvg import QGraphicsSvgItem
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal 
+from PyQt5 import QtGui, QtCore
 from utils.picker import HandwritingPicker  # Assuming picker.py is in the same directory
-from PyQt5 import QtGui
+class ClickableSvgItem(QGraphicsSvgItem):
+    clicked = pyqtSignal(str, int)
+
+    def __init__(self, svg_path, char, index):
+        super().__init__(svg_path)
+        self.char = char
+        self.index = index
+        self.custom_renderer = None
+        self.setAcceptHoverEvents(True)
+        self.setAcceptedMouseButtons(Qt.MouseButton.LeftButton)
+
+    def mousePressEvent(self, event:PyQt5.QtWidgets.QGraphicsSceneMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit(self.char, self.index)
+        super().mousePressEvent(event)
 
 class HandwritingGUI(QWidget):
     MAIN_LAYOUT_RATIO = (1, 2)  # (settings_layout, svg_view)
@@ -17,6 +33,7 @@ class HandwritingGUI(QWidget):
         self.picker = HandwritingPicker()
         self.background_item = None
         self.background_path = None
+        self.char_items = []  # 新增：記錄每個字的 QGraphicsItem
         self.init_ui()
 
     def init_ui(self) -> None:
@@ -86,10 +103,11 @@ class HandwritingGUI(QWidget):
         cell_size = self.size_spin.value()
         column_limit = self.column_spin.value()
         self.svg_scene.clear()
+        self.char_items = []
+        self.background_item = None
 
         # 重新加回背景（如果有）
         if self.background_path:
-            self.background_item = None
             self.set_background(self.background_path)
 
         margin = 0
@@ -127,16 +145,32 @@ class HandwritingGUI(QWidget):
 
             svg_path = self.picker.pick_svg_for_char(char)
             if svg_path:
-                svg_item = QGraphicsSvgItem(svg_path)
+                svg_item = ClickableSvgItem(svg_path, char, len(self.char_items))
                 svg_item.setScale(cell_size / 15)
                 svg_item.setPos(x, y)
+                svg_item.clicked.connect(self.open_font_picker_dialog)
                 self.svg_scene.addItem(svg_item)
+                self.char_items.append(svg_item)
             else:
                 fallback_char = self.picker.get_fallback_char(char)
                 text_item = self.svg_scene.addText(fallback_char)
                 if text_item is not None:
                     text_item.setPos(x + cell_size // 4, y + cell_size // 4)
-        # 設定 sceneRect 讓內容靠左上
+                    self.char_items.append(text_item)
+    def open_font_picker_dialog(self, char, index):
+        dialog = FontPickerDialog(self.picker, char, parent=self)
+        if dialog.exec_():
+            selected_svg = dialog.get_selected_svg()
+            if selected_svg:
+                # 更新該字的字體
+                item = self.char_items[index]
+                if isinstance(item, ClickableSvgItem):
+                    # 建立新的 QSvgRenderer 並保存，避免被垃圾回收
+                    from PyQt5.QtSvg import QSvgRenderer
+                    if hasattr(item, 'custom_renderer') and item.custom_renderer:
+                        del item.custom_renderer
+                    item.custom_renderer = QSvgRenderer(selected_svg)
+                    item.setSharedRenderer(item.custom_renderer)
     def export_to_pdf(self):
         """將 SVG scene 匯出成 PDF 檔案"""
         file_path, _ = QFileDialog.getSaveFileName(self, "儲存 PDF", "", "PDF Files (*.pdf)")
@@ -175,6 +209,74 @@ class HandwritingGUI(QWidget):
         rect = bg_item.boundingRect()
         self.svg_scene.setSceneRect(rect)
         self.svg_view.setFixedSize(int(rect.width()), int(rect.height()))
+class FontPickerDialog(QDialog):
+    def __init__(self, picker, char, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"選擇字體 - {char}")
+        self.picker = picker
+        self.char = char
+        self.selected_svg = None
+        self.current_page = 0
+        self.font_svgs = self.picker.get_all_svgs_for_char(char)
+        self.font_count = len(self.font_svgs)
+        self.fonts_per_page = 10
+
+        main_layout = QVBoxLayout(self)
+        self.preview_layout = QVBoxLayout()
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.preview_widget = QWidget()
+        self.preview_widget.setLayout(self.preview_layout)
+        self.scroll.setWidget(self.preview_widget)
+        main_layout.addWidget(self.scroll)
+
+        self.page_slider = QSlider(Qt.Orientation.Vertical)
+        self.page_slider.setMinimum(0)
+        self.page_slider.setMaximum(max(0, (self.font_count - 1) // self.fonts_per_page))
+        self.page_slider.valueChanged.connect(self.update_preview)
+        main_layout.addWidget(self.page_slider)
+
+        button_box = QHBoxLayout()
+        self.ok_btn = QPushButton("確定")
+        self.cancel_btn = QPushButton("取消")
+        self.ok_btn.clicked.connect(self.accept)
+        self.cancel_btn.clicked.connect(self.reject)
+        button_box.addWidget(self.ok_btn)
+        button_box.addWidget(self.cancel_btn)
+        main_layout.addLayout(button_box)
+
+        self.selected_index = None
+        self.update_preview()
+
+    def update_preview(self):
+        # 清除舊的預覽
+        for i in reversed(range(self.preview_layout.count())):
+            widget = self.preview_layout.itemAt(i).widget()
+            if widget:
+                widget.setParent(None)
+        start = self.page_slider.value() * self.fonts_per_page
+        end = min(start + self.fonts_per_page, self.font_count)
+        for idx in range(start, end):
+            svg_path = self.font_svgs[idx]
+            btn = QPushButton()
+            btn.setCheckable(True)
+            btn.setMinimumHeight(60)
+            # 顯示 SVG 預覽
+            icon = QtGui.QIcon(svg_path)
+            btn.setIcon(icon)
+            btn.setIconSize(QtCore.QSize(48, 48))
+            btn.clicked.connect(lambda checked, i=idx: self.select_font(i))
+            self.preview_layout.addWidget(btn)
+            if self.selected_index == idx:
+                btn.setChecked(True)
+
+    def select_font(self, idx):
+        self.selected_index = idx
+        self.selected_svg = self.font_svgs[idx]
+        self.update_preview()
+
+    def get_selected_svg(self):
+        return self.selected_svg
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     gui = HandwritingGUI()

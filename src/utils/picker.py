@@ -25,14 +25,9 @@ class HandwritingPicker:
         else:
             return " "  # 半形空白
 
-    def parse_svg_path(self, svg_path) -> str|None:
-        # Minimal SVG path extraction (for demo)
-        try:
-            tree = ET.parse(svg_path)
-            root = tree.getroot()
-            for elem in root.iter():
-                if elem.tag.endswith('path'):
-                    return elem.attrib.get('d', '')
-        except Exception:
-            return None
-        return None
+    def get_all_svgs_for_char(self, char):
+        folder = os.path.join(self.asset_dir, char)
+        if not os.path.isdir(folder):
+            return []
+        svg_files = [os.path.join(folder, f) for f in os.listdir(folder) if f.endswith(".svg")]
+        return svg_files
