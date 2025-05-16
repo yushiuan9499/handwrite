@@ -34,18 +34,18 @@ class HandwritingGUI(QWidget):
         settings_layout.addLayout(input_layout)
 
         # Column/Row
-        col_row_layout = QHBoxLayout()
-        col_row_layout.addWidget(QLabel("每行字數 (columns)："))
-        self.col_spin = QSpinBox()
-        self.col_spin.setRange(1, 100)
-        self.col_spin.setValue(10)
-        col_row_layout.addWidget(self.col_spin)
-        col_row_layout.addWidget(QLabel("行數 (rows)："))
-        self.row_spin = QSpinBox()
-        self.row_spin.setRange(1, 100)
-        self.row_spin.setValue(10)
-        col_row_layout.addWidget(self.row_spin)
-        settings_layout.addLayout(col_row_layout)
+        size_row_layout = QHBoxLayout()
+        size_row_layout.addWidget(QLabel("字體大小(font size)："))
+        self.size_spin = QSpinBox()
+        self.size_spin.setRange(1, 100)
+        self.size_spin.setValue(10)
+        size_row_layout.addWidget(self.size_spin)
+        size_row_layout.addWidget(QLabel("列數 (column)："))
+        self.column_spin = QSpinBox()
+        self.column_spin.setRange(1, 4)
+        self.column_spin.setValue(1)
+        size_row_layout.addWidget(self.column_spin)
+        settings_layout.addLayout(size_row_layout)
 
         # Preview button
         self.preview_btn = QPushButton("預覽")
@@ -72,25 +72,50 @@ class HandwritingGUI(QWidget):
 
     def preview(self) -> None:
         """預覽按鈕的點擊事件"""
-        text = self.text_input.toPlainText().strip()
+        text = self.text_input.toPlainText()
         if not text:
             QMessageBox.information(self, "提示", "請先輸入文字")
             return
-        columns = self.col_spin.value()
-        rows = self.row_spin.value()
+        # 假設字是正方形的
+        cell_size = self.size_spin.value()
+        column = self.column_spin.value()
         self.svg_scene.clear()
 
-        # 從左上角橫式填寫
-        cell_size = 15 # 每個字的大小
         margin = 10
-        max_chars = columns * rows 
-        text = text[:max_chars] # 限制字數
+        max_row = 30
+        max_column = 30
 
-        for idx, char in enumerate(text):
+        # 計算位置用變數
+        now_column = 0
+        row = 0
+        col = 0
+        col_shift = 0
+
+
+        # 從左上角橫式填寫
+        for char in text:
+            # 換行
+            if char == '\n':
+                row += 1
+                col = 0
+                continue
+            col += 1
+            # 計算這個column可以放多少字
+            max_word = max_column//column + (now_column < max_column%column)
+            if col >= max_word:
+                # 換行
+                col = 0
+                row += 1
+            if row >= max_row:
+                col_shift += max_word
+                now_column += 1
+                row = 0
+            if now_column >= column:
+                # 顯示警告，詢問是否拋棄後面的內容
+                QMessageBox.warning(self, "警告", "字數過多，請調整字數")
+                break
             # 計算位置
-            row = idx // columns
-            col = idx % columns
-            x = margin + col * cell_size
+            x = col_shift + margin + col * cell_size 
             y = margin + row * cell_size 
             # 嘗試從 SVG 中取得對應的字形
             svg_path = self.picker.pick_svg_for_char(char)
@@ -106,7 +131,6 @@ class HandwritingGUI(QWidget):
                 text_item = self.svg_scene.addText(fallback_char)
                 text_item.setPos(x + cell_size // 4, y + cell_size // 4)
         # 設定 sceneRect 讓內容靠左上
-        self.svg_scene.setSceneRect(0, 0, margin * 2 + columns * cell_size, margin * 2 + rows * cell_size)
     def export_to_pdf(self):
         """將 SVG scene 匯出成 PDF 檔案"""
         file_path, _ = QFileDialog.getSaveFileName(self, "儲存 PDF", "", "PDF Files (*.pdf)")
