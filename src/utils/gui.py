@@ -1,5 +1,4 @@
 import sys
-import PyQt5
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QLabel, QTextEdit, QSpinBox, QPushButton,
     QVBoxLayout, QHBoxLayout, QFileDialog, QMessageBox, QGraphicsView, QGraphicsScene
@@ -16,6 +15,8 @@ class HandwritingGUI(QWidget):
         super().__init__()
         self.setWindowTitle("Handwriting Simulator (PyQt)")
         self.picker = HandwritingPicker()
+        self.background_item = None
+        self.background_path = None
         self.init_ui()
 
     def init_ui(self) -> None:
@@ -46,6 +47,11 @@ class HandwritingGUI(QWidget):
         self.column_spin.setValue(1)
         size_row_layout.addWidget(self.column_spin)
         settings_layout.addLayout(size_row_layout)
+
+        # Set Background button
+        self.set_bg_btn = QPushButton("設定背景")
+        self.set_bg_btn.clicked.connect(self.set_background_dialog)
+        settings_layout.addWidget(self.set_bg_btn)
 
         # Preview button
         self.preview_btn = QPushButton("預覽")
@@ -80,8 +86,12 @@ class HandwritingGUI(QWidget):
         cell_size = self.size_spin.value()
         column = self.column_spin.value()
         self.svg_scene.clear()
+        # 重新加回背景（如果有）
+        if self.background_path:
+            self.background_item = None
+            self.set_background(self.background_path)
 
-        margin = 10
+        margin = 0
         max_row = 30
         max_column = 30
 
@@ -147,6 +157,23 @@ class HandwritingGUI(QWidget):
         finally:
             if painter:
                 painter.end()
+    def set_background_dialog(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "選擇背景圖片", "", "SVG Files (*.svg)")
+        if file_path:
+            self.set_background(file_path)
+
+    def set_background(self, svg_path):
+        # 移除舊的背景
+        if self.background_item and self.background_item.scene() is not None:
+            self.svg_scene.removeItem(self.background_item)
+            self.background_item = None
+        # 加入新的背景
+        bg_item = QGraphicsSvgItem(svg_path)
+        bg_item.setZValue(-100)  # 確保在最底層
+        bg_item.setPos(0, 0)
+        self.svg_scene.addItem(bg_item)
+        self.background_item = bg_item
+        self.background_path = svg_path
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
