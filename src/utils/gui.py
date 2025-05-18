@@ -1,7 +1,7 @@
 import sys
 import PyQt5
 from PyQt5.QtWidgets import (
-    QApplication, QWidget, QLabel, QTextEdit, QSpinBox, QPushButton, QScrollArea, QSlider,
+    QApplication, QWidget, QLabel, QTextEdit, QSpinBox, QDoubleSpinBox, QPushButton, QScrollArea, QSlider,
     QVBoxLayout, QHBoxLayout, QFileDialog, QMessageBox, QGraphicsView, QGraphicsScene, QDialog,
 )
 from PyQt5.QtSvg import QGraphicsSvgItem
@@ -54,9 +54,9 @@ class HandwritingGUI(QWidget):
         # Column/Row
         size_row_layout = QHBoxLayout()
         size_row_layout.addWidget(QLabel("字體大小(font size)："))
-        self.size_spin = QSpinBox()
+        self.size_spin = QDoubleSpinBox()
         self.size_spin.setRange(1, 100)
-        self.size_spin.setValue(10)
+        self.size_spin.setValue(21.33)  # Default size
         size_row_layout.addWidget(self.size_spin)
         size_row_layout.addWidget(QLabel("列數 (column)："))
         self.column_spin = QSpinBox()
@@ -118,14 +118,14 @@ class HandwritingGUI(QWidget):
 
         current_column = 0
         row = 0
-        col = 0
+        col = -1
         col_shift = 0
 
         # 從左上角橫式填寫
         for char in text:
             if char == '\n':
                 row += 1
-                col = 0
+                col = -1
                 continue
 
             col += 1
@@ -148,7 +148,7 @@ class HandwritingGUI(QWidget):
             svg_path = self.picker.pick_svg_for_char(char)
             if svg_path:
                 svg_item = ClickableSvgItem(svg_path, char, len(self.char_items))
-                svg_item.setScale(cell_size / 15)
+                svg_item.setScale(cell_size / 21.33)
                 # 將SVG置中於cell
                 svg_rect = svg_item.boundingRect()
                 offset_x = (cell_size - svg_rect.width() * svg_item.scale()) / 2
