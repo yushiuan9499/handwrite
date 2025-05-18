@@ -1,4 +1,5 @@
 # Handwrite
+![效果](./asset/preview1.png)
 ## Features  
 - 能夠將文章隨機轉換為預先設定的手寫字，但同時允許用戶自己調整
 - 將手寫字匯出成pdf 
