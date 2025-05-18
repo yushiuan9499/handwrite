@@ -86,6 +86,8 @@ class HandwritingGUI(QWidget):
         self.svg_scene = QGraphicsScene()
         self.svg_view.setScene(self.svg_scene)
         self.svg_view.setFixedSize(*self.SVG_VIEW_SIZE)
+        self.svg_view.setResizeAnchor(QGraphicsView.NoAnchor)
+        self.svg_view.setTransformationAnchor(QGraphicsView.NoAnchor)
         self.svg_view.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
 
         # Combine layouts
@@ -147,7 +149,11 @@ class HandwritingGUI(QWidget):
             if svg_path:
                 svg_item = ClickableSvgItem(svg_path, char, len(self.char_items))
                 svg_item.setScale(cell_size / 15)
-                svg_item.setPos(x, y)
+                # 將SVG置中於cell
+                svg_rect = svg_item.boundingRect()
+                offset_x = (cell_size - svg_rect.width() * svg_item.scale()) / 2
+                offset_y = (cell_size - svg_rect.height() * svg_item.scale()) / 2
+                svg_item.setPos(x + offset_x, y + offset_y)
                 svg_item.clicked.connect(self.open_font_picker_dialog)
                 self.svg_scene.addItem(svg_item)
                 self.char_items.append(svg_item)
@@ -156,7 +162,10 @@ class HandwritingGUI(QWidget):
                 text_item = self.svg_scene.addText(fallback_char)
                 if text_item is not None:
                     text_item.setPos(x + cell_size // 4, y + cell_size // 4)
-                    self.char_items.append(text_item)
+        # 設定 scene rect，確保左上角為 (0,0)
+        total_width = margin * 2 + cell_size * column_limit
+        total_height = margin * 2 + cell_size * max_row
+        self.svg_scene.setSceneRect(0, 0, total_width, total_height)
     def open_font_picker_dialog(self, char, index):
         dialog = FontPickerDialog(self.picker, char, parent=self)
         if dialog.exec_():
