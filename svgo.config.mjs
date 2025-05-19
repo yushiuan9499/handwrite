@@ -6,6 +6,7 @@ export default {
         overrides: {
           // disable a default plugin
           mergePaths: false,
+          convertPathData: false,
         },
       },
     },
