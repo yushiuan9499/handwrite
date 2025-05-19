@@ -10,3 +10,4 @@ wheels/
 .venv
 
 data/font
+last_compress.json

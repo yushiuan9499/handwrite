@@ -8,6 +8,7 @@ from PyQt5.QtSvg import QGraphicsSvgItem
 from PyQt5.QtCore import Qt, pyqtSignal 
 from PyQt5 import QtGui, QtCore
 from utils.picker import HandwritingPicker  # Assuming picker.py is in the same directory
+from utils.compress import compress_svg  # Assuming compress.py is in the same directory
 class ClickableSvgItem(QGraphicsSvgItem):
     clicked = pyqtSignal(str, int)
 
@@ -79,6 +80,11 @@ class HandwritingGUI(QWidget):
         self.export_pdf_btn = QPushButton("匯出為 PDF")
         self.export_pdf_btn.clicked.connect(self.export_to_pdf)
         settings_layout.addWidget(self.export_pdf_btn)
+
+        # Compress SVG button
+        self.compress_svg_btn = QPushButton("壓縮 SVG")
+        self.compress_svg_btn.clicked.connect(lambda: compress_svg())
+        settings_layout.addWidget(self.compress_svg_btn)
         settings_layout.addStretch(1)
 
         # Right: SVG display
@@ -218,6 +224,7 @@ class HandwritingGUI(QWidget):
         rect = bg_item.boundingRect()
         self.svg_scene.setSceneRect(rect)
         self.svg_view.setFixedSize(int(rect.width()), int(rect.height()))
+
 class FontPickerDialog(QDialog):
     def __init__(self, picker, char, parent=None):
         super().__init__(parent)
