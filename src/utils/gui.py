@@ -154,11 +154,26 @@ class HandwritingGUI(QWidget):
             svg_path = self.picker.pick_svg_for_char(char)
             if svg_path:
                 svg_item = ClickableSvgItem(svg_path, char, len(self.char_items))
-                svg_item.setScale(cell_size / 21.33)
-                # 將SVG置中於cell
-                svg_rect = svg_item.boundingRect()
-                offset_x = (cell_size - svg_rect.width() * svg_item.scale()) / 2
-                offset_y = (cell_size - svg_rect.height() * svg_item.scale()) / 2
+                import random
+                from PyQt5.QtGui import QTransform
+
+                # 隨機縮放 (0.95~1.05)
+                scale_factor = cell_size / 21.33 * random.uniform(0.95, 1.05)
+
+                # 根據xy座標進行非等比縮放
+                # 例如: x方向 0.95~1.05, y方向 0.95~1.05
+                sx = scale_factor * (1 + 0.03 * ((x % 5) - 2))  # -0.06~+0.06
+                sy = scale_factor * (1 + 0.03 * ((y % 5) - 2))
+
+                # 隨機平移 (-2~2 px)
+                offset_x = (cell_size - svg_item.boundingRect().width() * sx) / 2 + random.uniform(-2, 2)
+                offset_y = (cell_size - svg_item.boundingRect().height() * sy) / 2 + random.uniform(-2, 2)
+
+                # 建立仿射變換矩陣
+                transform = QTransform()
+                transform.scale(sx, sy)
+                svg_item.setTransform(transform)
+
                 svg_item.setPos(x + offset_x, y + offset_y)
                 svg_item.clicked.connect(self.open_font_picker_dialog)
                 self.svg_scene.addItem(svg_item)
