@@ -32,6 +32,6 @@ uv sync
 
 ### 執行
 ```bash
-python main.py
+python src/main.py
 ```
 
