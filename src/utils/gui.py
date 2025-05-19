@@ -163,15 +163,12 @@ class HandwritingGUI(QWidget):
                 svg_item.clicked.connect(self.open_font_picker_dialog)
                 self.svg_scene.addItem(svg_item)
                 self.char_items.append(svg_item)
-            else:
-                fallback_char = self.picker.get_fallback_char(char)
-                text_item = self.svg_scene.addText(fallback_char)
-                if text_item is not None:
-                    text_item.setPos(x + cell_size // 4, y + cell_size // 4)
         # 設定 scene rect，確保左上角為 (0,0)
-        total_width = margin * 2 + cell_size * column_limit
-        total_height = margin * 2 + cell_size * max_row
-        self.svg_scene.setSceneRect(0, 0, total_width, total_height)
+        if self.background_item:
+            rect = self.background_item.boundingRect()
+            self.svg_scene.setSceneRect(rect)
+        else:
+            self.svg_scene.setSceneRect(0, 0, self.SVG_VIEW_SIZE[0], self.SVG_VIEW_SIZE[1])
     def open_font_picker_dialog(self, char, index):
         dialog = FontPickerDialog(self.picker, char, parent=self)
         if dialog.exec_():
@@ -195,6 +192,12 @@ class HandwritingGUI(QWidget):
         printer = QPrinter(QPrinter.HighResolution)
         printer.setOutputFormat(QPrinter.PdfFormat)
         printer.setOutputFileName(file_path)
+
+        # 根據背景大小設定紙張大小
+        if self.background_item:
+            rect = self.background_item.boundingRect()
+            printer.setPaperSize(QtCore.QSizeF(rect.width(), rect.height()), QPrinter.Point)
+            printer.setFullPage(True)
         painter = None
         try:
             painter = QtGui.QPainter(printer)
